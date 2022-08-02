@@ -21,7 +21,10 @@ import shutil
 VERSION_BASE = "0.1"
 
 if len(sys.argv) != 6:
-    print("USAGE: %s OUTPUT_DIR PREVIOUS_VERSION GIT_NUM_COMMITS GIT_HASH HIVE_IMAGE" % sys.argv[0])
+    print(
+        f"USAGE: {sys.argv[0]} OUTPUT_DIR PREVIOUS_VERSION GIT_NUM_COMMITS GIT_HASH HIVE_IMAGE"
+    )
+
     sys.exit(1)
 
 outdir = sys.argv[1]
@@ -30,8 +33,8 @@ git_num_commits = sys.argv[3]
 git_hash = sys.argv[4]
 hive_image = sys.argv[5]
 
-full_version = "%s.%s-sha%s" % (VERSION_BASE, git_num_commits, git_hash)
-print("Generating CSV for version: %s" % full_version)
+full_version = f"{VERSION_BASE}.{git_num_commits}-sha{git_hash}"
+print(f"Generating CSV for version: {full_version}")
 
 if not os.path.exists(outdir):
     os.mkdir(outdir)
@@ -79,10 +82,8 @@ with open('config/operator/operator_role.yaml', 'r') as stream:
 
 # Add our deployment spec for the hive operator:
 with open('config/operator/operator_deployment.yaml', 'r') as stream:
-    operator_components = []
     operator = yaml.load_all(stream, Loader=yaml.SafeLoader)
-    for doc in operator:
-        operator_components.append(doc)
+    operator_components = list(operator)
     operator_deployment = operator_components[1]
     csv['spec']['install']['spec']['deployments'][0]['spec'] = operator_deployment['spec']
 
@@ -90,18 +91,18 @@ with open('config/operator/operator_deployment.yaml', 'r') as stream:
 csv['spec']['install']['spec']['deployments'][0]['spec']['template']['spec']['containers'][0]['image'] = hive_image
 
 # Update the versions to include git hash:
-csv['metadata']['name'] = "hive-operator.v%s" % full_version
+csv['metadata']['name'] = f"hive-operator.v{full_version}"
 csv['spec']['version'] = full_version
-csv['spec']['replaces'] = "hive-operator.v%s" % prev_version
+csv['spec']['replaces'] = f"hive-operator.v{prev_version}"
 
 # Set the CSV createdAt annotation:
 now = datetime.datetime.now()
 csv['metadata']['annotations']['createdAt'] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 # Write the CSV to disk:
-csv_filename = "hive-operator.v%s.clusterserviceversion.yaml" % full_version
+csv_filename = f"hive-operator.v{full_version}.clusterserviceversion.yaml"
 csv_file = os.path.join(version_dir, csv_filename)
 with open(csv_file, 'w') as outfile:
     yaml.dump(csv, outfile, default_flow_style=False)
-print("Wrote ClusterServiceVersion: %s" % csv_file)
+print(f"Wrote ClusterServiceVersion: {csv_file}")
 

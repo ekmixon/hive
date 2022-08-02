@@ -35,8 +35,7 @@ def generate_operatorhub_version(prev_version=current_operatorhub_version()):
     # bump the zstream
     previous_z = int(prev_version.split('.')[-1])
     new_z = previous_z + 1
-    new_version = "%s.%s" % ('.'.join(prev_version.split('.')[:-1]), new_z)
-    return new_version
+    return f"{'.'.join(prev_version.split('.')[:-1])}.{new_z}"
 
 
 def generate_osd_version():
@@ -56,7 +55,7 @@ def generate_csv_operatorhub():
     if not version:
         version = generate_operatorhub_version(prev_version)
     if version == prev_version:
-        raise ValueError("version and prev_version cannot be the same: %s" % version)
+        raise ValueError(f"version and prev_version cannot be the same: {version}")
     generate_csv_base(version, prev_version, args.hive_image)
 
 
@@ -74,8 +73,8 @@ def generate_csv_base(version, prev_version, hive_image):
     if not bundle_dir:
         bundle_dir = tempfile.mkdtemp()
 
-    print("Writing bundle files to directory: %s" % bundle_dir)
-    print("Generating CSV for version: %s" % version)
+    print(f"Writing bundle files to directory: {bundle_dir}")
+    print(f"Generating CSV for version: {version}")
 
     crds_dir = 'config/crds'
     csv_template = 'config/templates/hive-csv-template.yaml'
@@ -126,22 +125,20 @@ def generate_csv_base(version, prev_version, hive_image):
 
     # Add our deployment spec for the hive operator:
     with open(deployment_spec, 'r') as stream:
-        operator_components = []
         operator = yaml.load_all(stream, Loader=yaml.SafeLoader)
-        for doc in operator:
-            operator_components.append(doc)
+        operator_components = list(operator)
         operator_deployment = operator_components[1]
         csv['spec']['install']['spec']['deployments'][0]['spec'] = operator_deployment['spec']
 
     # Update the versions to include git hash:
-    csv['metadata']['name'] = "hive-operator.v%s" % version
+    csv['metadata']['name'] = f"hive-operator.v{version}"
     csv['spec']['version'] = version
-    csv['spec']['replaces'] = "hive-operator.v%s" % prev_version
+    csv['spec']['replaces'] = f"hive-operator.v{prev_version}"
 
     # Update the deployment to use the defined image:
     image_ref = hive_image
-    if not ":" in image_ref:
-        image_ref = "%s:v%s" % (hive_image, version)
+    if ":" not in image_ref:
+        image_ref = f"{hive_image}:v{version}"
     csv['spec']['install']['spec']['deployments'][0]['spec']['template']['spec']['containers'][0]['image'] = image_ref
     csv['metadata']['annotations']['containerImage'] = image_ref
 
@@ -150,11 +147,11 @@ def generate_csv_base(version, prev_version, hive_image):
     csv['metadata']['annotations']['createdAt'] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # Write the CSV to disk:
-    csv_filename = "hive-operator.v%s.clusterserviceversion.yaml" % version
+    csv_filename = f"hive-operator.v{version}.clusterserviceversion.yaml"
     csv_file = os.path.join(version_dir, csv_filename)
     with open(csv_file, 'w') as outfile:
         yaml.dump(csv, outfile, default_flow_style=False)
-    print("Wrote ClusterServiceVersion: %s" % csv_file)
+    print(f"Wrote ClusterServiceVersion: {csv_file}")
 
     # generate package
     generate_package(package_file, args.channel, version)
@@ -167,12 +164,12 @@ def generate_package(package_file, channel, version):
       defaultChannel: %s
       packageName: hive-operator
 """
-    name = "hive-operator.v%s" % version
+    name = f"hive-operator.v{version}"
     document = document_template % (name, channel, channel)
 
     with open(package_file, 'w') as outfile:
         yaml.dump(yaml.load(document, Loader=yaml.SafeLoader), outfile, default_flow_style=False)
-    print("Wrote package: %s" % package_file)
+    print(f"Wrote package: {package_file}")
 
 
 parser = argparse.ArgumentParser(
